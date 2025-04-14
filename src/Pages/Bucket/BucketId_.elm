@@ -1,15 +1,16 @@
 module Pages.Bucket.BucketId_ exposing (page)
 
-import Date
 import Dict
 import Element
 import Element.Font as Font
 import Gen.Params.Bucket.BucketId_ exposing (Params)
 import Gen.Route as Route
+import Model.YearMonth
 import Page exposing (Page)
 import Palette.X11 as X11
 import Request
 import Shared
+import Time exposing (Posix)
 import Url
 import View exposing (View)
 import Views.BucketBreakdown
@@ -93,13 +94,15 @@ type alias Transaction =
     { href : String
     , depositAmount : Shared.Cents
     , description : String
-    , date : Date.Date
+    , yearMonth : Model.YearMonth.YearMonth
+    , timeCreated : Posix
     }
 
 
 viewTransactions : Shared.Bucket -> List Shared.Transfer -> Element.Element msg
 viewTransactions bucket transfers =
     let
+        expenseTransactions : List Transaction
         expenseTransactions =
             bucket.expenses
                 |> List.map
@@ -111,7 +114,8 @@ viewTransactions bucket transfers =
                                 )
                         , depositAmount = -expense.cost
                         , description = expense.description
-                        , date = expense.date
+                        , yearMonth = expense.yearMonth
+                        , timeCreated = expense.timeCreated
                         }
                     )
 
@@ -131,9 +135,11 @@ viewTransactions bucket transfers =
                 else
                     transfer.amount
             , description = "Transfer from " ++ transfer.fromBucketId ++ " to " ++ transfer.toBucketId
-            , date = transfer.date
+            , timeCreated = transfer.timeCreated
+            , yearMonth = transfer.timeCreated |> Model.YearMonth.fromPosix
             }
 
+        transferTransactions : List Transaction
         transferTransactions =
             (out
                 |> List.map (transferToTransaction True)
@@ -147,7 +153,7 @@ viewTransactions bucket transfers =
             (expenseTransactions
                 ++ transferTransactions
             )
-                |> List.sortBy (.date >> Date.toRataDie)
+                |> List.sortBy (.timeCreated >> Time.posixToMillis)
     in
     Element.table [ Element.padding 10, Element.width Element.fill, Font.size 18 ]
         { data = transactions
@@ -191,7 +197,7 @@ viewTransactions bucket transfers =
               }
             , { header = Element.none
               , width = Element.shrink
-              , view = \transaction -> wrapWithLink transaction.href (Element.paragraph [ Font.alignRight ] [ Element.text (Date.format "MM/yy" transaction.date) ])
+              , view = \transaction -> wrapWithLink transaction.href (Element.paragraph [ Font.alignRight ] [ Element.text (Model.YearMonth.displayMMYY transaction.yearMonth) ])
               }
             ]
         }

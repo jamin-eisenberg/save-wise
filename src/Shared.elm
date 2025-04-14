@@ -14,12 +14,13 @@ module Shared exposing
     , update
     )
 
-import Date
 import Dict exposing (Dict)
 import Element
 import Json.Decode as Json
+import Model.YearMonth
 import Request exposing (Request)
 import SolidColor
+import Time exposing (Posix)
 
 
 type alias Flags =
@@ -41,7 +42,7 @@ type alias Transfer =
     , fromBucketId : String
     , toBucketId : String
     , amount : Cents
-    , date : Date.Date
+    , timeCreated : Posix
     }
 
 
@@ -56,7 +57,8 @@ type alias Expense =
     { id : String
     , description : String
     , cost : Cents
-    , date : Date.Date
+    , timeCreated : Posix
+    , yearMonth : Model.YearMonth.YearMonth
     }
 
 
@@ -143,7 +145,10 @@ init _ _ =
                                                        else
                                                         1
                                                       )
-                                            , date = Date.fromRataDie 739348
+                                            , yearMonth =
+                                                Model.YearMonth.fromMonthAndYear 4 2025
+                                                    |> Maybe.withDefault Model.YearMonth.epoch
+                                            , timeCreated = Time.millisToPosix 1744508328823
                                             }
                                         )
                           }
@@ -155,7 +160,7 @@ init _ _ =
               , fromBucketId = "wedding"
               , toBucketId = "poop"
               , amount = 123456
-              , date = Date.fromRataDie 739347
+              , timeCreated = Time.millisToPosix 1744508328823
               }
             ]
       }
