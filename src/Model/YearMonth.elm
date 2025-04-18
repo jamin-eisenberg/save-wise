@@ -1,14 +1,22 @@
-module Model.YearMonth exposing (YearMonth, displayMMYY, epoch, fromMonthAndYear, fromPosix)
+module Model.YearMonth exposing (YearMonth, displayMMYY, epoch, fromMonthAndYear, fromPosix, getMonth, getYear, monthToString)
 
 import Time
 
 
 type YearMonth
-    = YearMonth { month : Int, year : Int }
+    = YearMonth { month : Time.Month, year : Int }
+
+
+getYear (YearMonth { year }) =
+    year
+
+
+getMonth (YearMonth { month }) =
+    month
 
 
 fromMonthAndYear month year =
-    if 1 <= month && month <= 12 && year >= 0 then
+    if year >= 0 then
         Just (YearMonth { month = month, year = year })
 
     else
@@ -16,7 +24,7 @@ fromMonthAndYear month year =
 
 
 displayMMYY (YearMonth { month, year }) =
-    (String.fromInt month |> String.padLeft 2 '0')
+    (timeMonthNumber month |> String.fromInt |> String.padLeft 2 '0')
         ++ "/"
         ++ (String.fromInt year
                 |> String.padLeft 2 '0'
@@ -24,7 +32,7 @@ displayMMYY (YearMonth { month, year }) =
 
 
 epoch =
-    YearMonth { month = 1, year = 1970 }
+    YearMonth { month = Time.Jan, year = 1970 }
 
 
 fromPosix posix =
@@ -32,7 +40,7 @@ fromPosix posix =
         zone =
             Time.utc
     in
-    YearMonth { month = Time.toMonth zone posix |> timeMonthNumber, year = Time.toYear zone posix }
+    YearMonth { month = Time.toMonth zone posix, year = Time.toYear zone posix }
 
 
 timeMonthNumber month =
@@ -72,3 +80,43 @@ timeMonthNumber month =
 
         Time.Dec ->
             12
+
+
+monthToString : Time.Month -> String
+monthToString month =
+    case month of
+        Time.Jan ->
+            "January"
+
+        Time.Feb ->
+            "February"
+
+        Time.Mar ->
+            "March"
+
+        Time.Apr ->
+            "April"
+
+        Time.May ->
+            "May"
+
+        Time.Jun ->
+            "June"
+
+        Time.Jul ->
+            "July"
+
+        Time.Aug ->
+            "August"
+
+        Time.Sep ->
+            "September"
+
+        Time.Oct ->
+            "October"
+
+        Time.Nov ->
+            "November"
+
+        Time.Dec ->
+            "December"

@@ -24,7 +24,7 @@ page shared req =
             req.params.bucketId
                 |> Url.percentDecode
                 |> Maybe.andThen (\id -> Dict.get id shared.buckets)
-                |> Maybe.withDefault { id = "Not Found", initialAmount = 0, expenses = [] }
+                |> Maybe.withDefault { id = "Not Found", initialAmount = 0, expenses = Dict.empty }
 
         -- TODO reroute home
     in
@@ -40,7 +40,7 @@ view bucket buckets transfers =
             [ Font.size 80, Font.center, Element.centerX, Element.width Element.fill, Element.paddingXY 0 20 ]
             [ Element.paragraph [] [ Element.text (Views.Money.format { dollarSign = True, cents = False, alwaysSign = False } (Shared.totalNetCents bucket transfers)) ]
             , Views.BucketBreakdown.view (Dict.values buckets) transfers (Just bucket.id)
-            , viewSubtotals bucket.id bucket.expenses transfers
+            , viewSubtotals bucket.id (Dict.values bucket.expenses) transfers
             , viewTransactions bucket transfers
             ]
     }
@@ -104,13 +104,13 @@ viewTransactions bucket transfers =
     let
         expenseTransactions : List Transaction
         expenseTransactions =
-            bucket.expenses
+            Dict.values bucket.expenses
                 |> List.map
                     (\expense ->
                         { href =
                             Route.toHref
                                 (Route.Bucket__BucketId___Expense__ExpenseId_
-                                    { bucketId = bucket.id, expenseId = expense.id }
+                                    { bucketId = Url.percentEncode bucket.id, expenseId = Url.percentEncode expense.id }
                                 )
                         , depositAmount = -expense.cost
                         , description = expense.description
@@ -126,7 +126,7 @@ viewTransactions bucket transfers =
             { href =
                 Route.toHref
                     (Route.Transfer__TransferId_
-                        { transferId = transfer.id }
+                        { transferId = Url.percentEncode transfer.id }
                     )
             , depositAmount =
                 if withdrawal then

@@ -34,6 +34,7 @@ type alias Cents =
 type alias Model =
     { buckets : Dict String Bucket
     , transfers : List Transfer
+    , currentYear : Int
     }
 
 
@@ -49,7 +50,7 @@ type alias Transfer =
 type alias Bucket =
     { id : String
     , initialAmount : Cents
-    , expenses : List Expense
+    , expenses : Dict String Expense
     }
 
 
@@ -103,7 +104,7 @@ totalNetCents bucket transfers =
             |> List.map .amount
             |> List.sum
           )
-        - (bucket.expenses
+        - (Dict.values bucket.expenses
             |> List.map .cost
             |> List.sum
           )
@@ -131,26 +132,34 @@ init _ _ =
                         , { id = id
                           , initialAmount = (i + 1) * 100000
                           , expenses =
-                                List.range 0 (i * 2)
-                                    |> List.map
-                                        (\j ->
-                                            { id = String.left (j * 2) ("Dummy Transactionnnnnnnnnnnnnnnnnnnnn " ++ String.fromInt j)
-                                            , description = String.left (j * 2) ("Dummy Transactionnnnnnnnnnnnnnnnnnnnn " ++ String.fromInt j)
-                                            , cost =
-                                                j
-                                                    * 10100
-                                                    * (if modBy 2 j == 0 then
-                                                        -1
+                                Dict.fromList
+                                    (List.range 0 (i * 2)
+                                        |> List.map
+                                            (\j ->
+                                                let
+                                                    expenseId =
+                                                        String.left (j * 2) ("Dummy Transactionnnnnnnnnnnnnnnnnnnnn " ++ String.fromInt j)
+                                                in
+                                                ( expenseId
+                                                , { id = expenseId
+                                                  , description = "Description of " ++ expenseId
+                                                  , cost =
+                                                        j
+                                                            * 10100
+                                                            * (if modBy 2 j == 0 then
+                                                                -1
 
-                                                       else
-                                                        1
-                                                      )
-                                            , yearMonth =
-                                                Model.YearMonth.fromMonthAndYear 4 2025
-                                                    |> Maybe.withDefault Model.YearMonth.epoch
-                                            , timeCreated = Time.millisToPosix 1744508328823
-                                            }
-                                        )
+                                                               else
+                                                                1
+                                                              )
+                                                  , yearMonth =
+                                                        Model.YearMonth.fromMonthAndYear Time.Apr 2025
+                                                            |> Maybe.withDefault Model.YearMonth.epoch
+                                                  , timeCreated = Time.millisToPosix 1744508328823
+                                                  }
+                                                )
+                                            )
+                                    )
                           }
                         )
                     )
@@ -163,6 +172,7 @@ init _ _ =
               , timeCreated = Time.millisToPosix 1744508328823
               }
             ]
+      , currentYear = 2025
       }
     , Cmd.none
     )
