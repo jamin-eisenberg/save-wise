@@ -83,7 +83,7 @@ page shared req =
     Page.advanced
         { init = init expenseId expense
         , update = update shared.currentYear req
-        , view = view shared.currentYear -- TODO show bucket name
+        , view = view shared.currentYear bucket.id
         , subscriptions = \_ -> Sub.none
         }
 
@@ -179,7 +179,6 @@ update currentYear req msg model =
                 Err decodeErrors ->
                     ( { model | decodeErrors = decodeErrors }, Effect.none )
 
-        -- TODO update shared model
         SaveResponded currentTime formExpense ->
             ( { model | saveState = Saved }
             , Effect.batch
@@ -190,8 +189,8 @@ update currentYear req msg model =
             )
 
 
-view : Int -> Model -> View Msg
-view currentYear model =
+view : Int -> String -> Model -> View Msg
+view currentYear bucketId model =
     { title = model.description
     , element =
         Element.column
@@ -225,6 +224,7 @@ view currentYear model =
                     )
                     model.decodeErrors
                 )
+            , Element.text ("Bucket: " ++ bucketId)
             , Input.text
                 []
                 { onChange = EditDescription
