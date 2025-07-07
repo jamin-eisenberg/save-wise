@@ -1,6 +1,5 @@
 module Pages.Bucket.BucketId_.Expense.ExpenseId_ exposing (Model, Msg, page)
 
-import Browser.Navigation
 import Dict
 import Dropdown
 import Effect
@@ -9,17 +8,13 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
-import Element.Region exposing (description)
 import Form.Decoder as Decoder
 import Gen.Params.Bucket.BucketId_.Expense.ExpenseId_ exposing (Params)
 import Gen.Route
-import Html
-import Html.Attributes exposing (type_)
-import Model.YearMonth as YearMonth exposing (YearMonth, getMonth, getYear, monthToString)
-import Page exposing (Page)
+import Html.Attributes
+import Model.YearMonth as YearMonth exposing (YearMonth, monthToString)
+import Page
 import Palette.X11 as X11
-import Platform.Cmd as Cmd
-import Process
 import Request
 import Shared
 import Task
