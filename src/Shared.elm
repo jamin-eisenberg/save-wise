@@ -34,7 +34,7 @@ type alias Cents =
 type alias Model =
     { buckets : Dict String Bucket
     , transfers : List Transfer
-    , currentYear : Int
+    , currentYearMonth : Model.YearMonth.YearMonth
     }
 
 
@@ -170,7 +170,7 @@ init _ _ =
               , timeCreated = Time.millisToPosix 1744508328823
               }
             ]
-      , currentYear = 2025
+      , currentYearMonth = Model.YearMonth.fromMonthAndYear Time.Jul 2025
       }
     , Cmd.none
     )

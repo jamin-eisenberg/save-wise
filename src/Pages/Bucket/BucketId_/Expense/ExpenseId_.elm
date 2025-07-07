@@ -12,7 +12,7 @@ import Form.Decoder as Decoder
 import Gen.Params.Bucket.BucketId_.Expense.ExpenseId_ exposing (Params)
 import Gen.Route
 import Html.Attributes
-import Model.YearMonth as YearMonth exposing (YearMonth, monthToString)
+import Model.YearMonth as YearMonth exposing (YearMonth, getMonth, getYear, monthToString)
 import Page
 import Palette.X11 as X11
 import Request
@@ -76,23 +76,23 @@ page shared req =
             Dict.get expenseId bucket.expenses
     in
     Page.advanced
-        { init = init expenseId expense
-        , update = update shared.currentYear req
-        , view = view shared.currentYear bucket.id
+        { init = init expenseId expense shared.currentYearMonth
+        , update = update (getYear shared.currentYearMonth) req
+        , view = view (getYear shared.currentYearMonth) bucket.id
         , subscriptions = \_ -> Sub.none
         }
 
 
-init : String -> Maybe Shared.Expense -> ( Model, Effect.Effect Msg )
-init expenseId e =
+init : String -> Maybe Shared.Expense -> YearMonth -> ( Model, Effect.Effect Msg )
+init expenseId e currentYearMonth =
     ( case e of
         Nothing ->
             { id = expenseId
             , description = ""
             , cost = Nothing
-            , year = Nothing
+            , year = Just (getYear currentYearMonth)
             , yearDropdownState = Dropdown.init "year-dropdown"
-            , month = Nothing
+            , month = Just (getMonth currentYearMonth)
             , monthDropdownState = Dropdown.init "month-dropdown"
             , saveState = NotStarted
             , decodeErrors = []
