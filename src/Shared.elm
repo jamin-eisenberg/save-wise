@@ -4,7 +4,7 @@ module Shared exposing
     , Expense
     , Flags
     , Model
-    , Msg
+    , Msg(..)
     , Transfer
     , bucketTransfers
     , init
@@ -111,7 +111,7 @@ totalNetCents bucket transfers =
 
 
 type Msg
-    = NoOp
+    = UpsertExpense String String Time.Posix { description : String, cost : Cents, yearMonth : Model.YearMonth.YearMonth }
 
 
 init : Request -> Flags -> ( Model, Cmd Msg )
@@ -138,7 +138,7 @@ init _ _ =
                                             (\j ->
                                                 let
                                                     expenseId =
-                                                        String.left (j * 2) ("Dummy Transactionnnnnnnnnnnnnnnnnnnnn " ++ String.fromInt j)
+                                                        String.left (j * 2) ("Dummy-Transactionnnnnnnnnnnnnnnnnnnnn-" ++ String.fromInt j)
                                                 in
                                                 ( expenseId
                                                 , { id = expenseId
@@ -152,9 +152,7 @@ init _ _ =
                                                                else
                                                                 1
                                                               )
-                                                  , yearMonth =
-                                                        Model.YearMonth.fromMonthAndYear Time.Apr 2025
-                                                            |> Maybe.withDefault Model.YearMonth.epoch
+                                                  , yearMonth = Model.YearMonth.fromMonthAndYear Time.Apr 2025
                                                   , timeCreated = Time.millisToPosix 1744508328823
                                                   }
                                                 )
@@ -181,8 +179,45 @@ init _ _ =
 update : Request -> Msg -> Model -> ( Model, Cmd Msg )
 update _ msg model =
     case msg of
-        NoOp ->
-            ( model, Cmd.none )
+        UpsertExpense bucketId expenseId currentTime formExpense ->
+            ( { model
+                | buckets =
+                    model.buckets
+                        |> Dict.update bucketId
+                            (\bucket ->
+                                bucket
+                                    |> Maybe.map
+                                        (\existingBucket ->
+                                            { existingBucket
+                                                | expenses =
+                                                    existingBucket.expenses
+                                                        |> Dict.update expenseId
+                                                            (\expense ->
+                                                                case expense of
+                                                                    Nothing ->
+                                                                        Just
+                                                                            { id = expenseId
+                                                                            , description = formExpense.description
+                                                                            , cost = formExpense.cost
+                                                                            , yearMonth = formExpense.yearMonth
+                                                                            , timeCreated = currentTime
+                                                                            }
+
+                                                                    Just oldExpense ->
+                                                                        Just
+                                                                            { id = oldExpense.id
+                                                                            , description = formExpense.description
+                                                                            , cost = formExpense.cost
+                                                                            , yearMonth = formExpense.yearMonth
+                                                                            , timeCreated = oldExpense.timeCreated
+                                                                            }
+                                                            )
+                                            }
+                                        )
+                            )
+              }
+            , Cmd.none
+            )
 
 
 subscriptions : Request -> Model -> Sub Msg

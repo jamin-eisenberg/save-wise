@@ -16,11 +16,7 @@ getMonth (YearMonth { month }) =
 
 
 fromMonthAndYear month year =
-    if year >= 0 then
-        Just (YearMonth { month = month, year = year })
-
-    else
-        Nothing
+    YearMonth { month = month, year = year }
 
 
 displayMMYY (YearMonth { month, year }) =

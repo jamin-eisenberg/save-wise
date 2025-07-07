@@ -1,19 +1,28 @@
 module Pages.Bucket.BucketId_.Expense.ExpenseId_ exposing (Model, Msg, page)
 
+import Browser.Navigation
 import Dict
 import Dropdown
+import Effect
 import Element
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Element.Region exposing (description)
+import Form.Decoder as Decoder
 import Gen.Params.Bucket.BucketId_.Expense.ExpenseId_ exposing (Params)
+import Gen.Route
+import Html
 import Html.Attributes exposing (type_)
-import Model.YearMonth exposing (monthToString)
+import Model.YearMonth as YearMonth exposing (YearMonth, getMonth, getYear, monthToString)
 import Page exposing (Page)
+import Palette.X11 as X11
 import Platform.Cmd as Cmd
+import Process
 import Request
 import Shared
+import Task
 import Time
 import Url
 import View exposing (View)
@@ -32,6 +41,8 @@ type alias Model =
     , yearDropdownState : Dropdown.State Year
     , month : Maybe Time.Month
     , monthDropdownState : Dropdown.State Time.Month
+    , saveState : SaveState
+    , decodeErrors : List DecodeError
     }
 
 
@@ -42,10 +53,14 @@ type Msg
     | EditYear (Maybe Int)
     | MonthDropdownMsg (Dropdown.Msg Time.Month)
     | EditMonth (Maybe Time.Month)
+    | Save
+    | SaveResponded Time.Posix FormExpense
 
 
-
--- | CreateExpense
+type SaveState
+    = NotStarted
+    | Saving
+    | Saved
 
 
 page : Shared.Model -> Request.With Params -> Page.With Model Msg
@@ -65,15 +80,15 @@ page shared req =
         expense =
             Dict.get expenseId bucket.expenses
     in
-    Page.element
+    Page.advanced
         { init = init expenseId expense
-        , update = update shared.currentYear
-        , view = view shared.currentYear
+        , update = update shared.currentYear req
+        , view = view shared.currentYear -- TODO show bucket name
         , subscriptions = \_ -> Sub.none
         }
 
 
-init : String -> Maybe Shared.Expense -> ( Model, Cmd Msg )
+init : String -> Maybe Shared.Expense -> ( Model, Effect.Effect Msg )
 init expenseId e =
     ( case e of
         Nothing ->
@@ -84,26 +99,30 @@ init expenseId e =
             , yearDropdownState = Dropdown.init "year-dropdown"
             , month = Nothing
             , monthDropdownState = Dropdown.init "month-dropdown"
+            , saveState = NotStarted
+            , decodeErrors = []
             }
 
         Just expense ->
             { id = expense.id
             , description = expense.description
             , cost = Just expense.cost
-            , year = Just (Model.YearMonth.getYear expense.yearMonth)
+            , year = Just (YearMonth.getYear expense.yearMonth)
             , yearDropdownState = Dropdown.init "year-dropdown"
-            , month = Just (Model.YearMonth.getMonth expense.yearMonth)
+            , month = Just (YearMonth.getMonth expense.yearMonth)
             , monthDropdownState = Dropdown.init "month-dropdown"
+            , saveState = NotStarted
+            , decodeErrors = []
             }
-    , Cmd.none
+    , Effect.none
     )
 
 
-update : Int -> Msg -> Model -> ( Model, Cmd Msg )
-update currentYear msg model =
+update : Int -> Request.With Params -> Msg -> Model -> ( Model, Effect.Effect Msg )
+update currentYear req msg model =
     case msg of
         EditDescription newDescription ->
-            ( { model | description = newDescription }, Cmd.none )
+            ( { model | description = newDescription }, Effect.none )
 
         EditCost newCostStr ->
             let
@@ -117,10 +136,10 @@ update currentYear msg model =
             ( { model
                 | cost =
                     newCostStrNeg
-                        |> String.filter (\c -> not (List.member c [ '$', '.', ',' ]))
+                        |> String.filter (\c -> not (List.member c [ '$', '.', ',', ' ' ]))
                         |> String.toInt
               }
-            , Cmd.none
+            , Effect.none
             )
 
         MonthDropdownMsg subMsg ->
@@ -128,34 +147,92 @@ update currentYear msg model =
                 ( state, cmd ) =
                     Dropdown.update monthDropdownConfig subMsg model model.monthDropdownState
             in
-            ( { model | monthDropdownState = state }, cmd )
+            ( { model | monthDropdownState = state }, Effect.fromCmd cmd )
 
         EditMonth newMonth ->
-            ( { model | month = newMonth }, Cmd.none )
+            ( { model | month = newMonth }, Effect.none )
 
         YearDropdownMsg subMsg ->
             let
                 ( state, cmd ) =
                     Dropdown.update (yearDropdownConfig currentYear) subMsg model model.yearDropdownState
             in
-            ( { model | yearDropdownState = state }, cmd )
+            ( { model | yearDropdownState = state }, Effect.fromCmd cmd )
 
         EditYear newYear ->
-            ( { model | year = newYear }, Cmd.none )
+            ( { model | year = newYear }, Effect.none )
+
+        Save ->
+            -- TODO actually save to DB
+            let
+                decodedExpense =
+                    Decoder.run formDecoder { description = model.description, cost = model.cost, year = model.year, month = model.month }
+            in
+            case decodedExpense of
+                Ok formExpense ->
+                    ( { model | saveState = Saving }
+                    , Time.now
+                        |> Task.perform (\currentTime -> SaveResponded currentTime formExpense)
+                        |> Effect.fromCmd
+                    )
+
+                Err decodeErrors ->
+                    ( { model | decodeErrors = decodeErrors }, Effect.none )
+
+        -- TODO update shared model
+        SaveResponded currentTime formExpense ->
+            ( { model | saveState = Saved }
+            , Effect.batch
+                [ Request.pushRoute (Gen.Route.Bucket__BucketId_ { bucketId = req.params.bucketId }) req
+                    |> Effect.fromCmd
+                , Effect.fromShared (Shared.UpsertExpense req.params.bucketId req.params.expenseId currentTime formExpense)
+                ]
+            )
 
 
 view : Int -> Model -> View Msg
 view currentYear model =
     { title = model.description
     , element =
-        Element.column [ Element.width Element.fill, Element.padding 20, Element.spacing 20 ]
-            [ Input.text []
+        Element.column
+            [ Element.width Element.fill
+            , Element.padding 20
+            , Element.spacing 20
+            , Font.color
+                (Shared.solidColorToColor
+                    (if model.saveState == Saving then
+                        X11.slateGray
+
+                     else
+                        X11.black
+                    )
+                )
+            ]
+            [ Element.textColumn [ Element.spacing 10, Element.width Element.fill ]
+                (List.map
+                    (\error ->
+                        error
+                            |> decodeErrorToString
+                            |> Element.text
+                            |> List.singleton
+                            |> Element.paragraph
+                                [ Element.padding 15
+                                , Border.rounded 10
+                                , Background.color (Shared.solidColorToColor X11.lightPink)
+                                , Font.color (Shared.solidColorToColor X11.red)
+                                , Element.width Element.fill
+                                ]
+                    )
+                    model.decodeErrors
+                )
+            , Input.text
+                []
                 { onChange = EditDescription
                 , text = model.description
                 , placeholder = Nothing
                 , label = Input.labelAbove [] (Element.text "Description")
                 }
-            , Input.text []
+            , Input.text [ Element.htmlAttribute (Html.Attributes.attribute "inputmode" "decimal") ]
                 { onChange = EditCost
                 , text =
                     model.cost
@@ -174,8 +251,93 @@ view currentYear model =
                     , Dropdown.view (yearDropdownConfig currentYear) model model.yearDropdownState
                     ]
                 ]
+            , Input.button
+                [ Element.width Element.fill
+                , Background.color (Shared.solidColorToColor X11.springGreen)
+                , Border.rounded 6
+                ]
+                { onPress = Just Save
+                , label =
+                    Element.paragraph
+                        [ Font.center, Element.padding 12 ]
+                        [ Element.text "Save" ]
+                }
             ]
     }
+
+
+type alias Form =
+    { description : String, cost : Maybe Shared.Cents, month : Maybe Time.Month, year : Maybe Year }
+
+
+type alias FormExpense =
+    { description : String, cost : Shared.Cents, yearMonth : YearMonth }
+
+
+formDecoder : Decoder.Decoder Form DecodeError FormExpense
+formDecoder =
+    Decoder.top FormExpense
+        |> Decoder.field description_
+        |> Decoder.field cost_
+        |> Decoder.field yearMonthDecoder
+
+
+description_ =
+    Decoder.lift .description
+        (Decoder.identity
+            |> Decoder.assert (Decoder.minLength DescriptionAbsent 1)
+        )
+
+
+cost_ =
+    Decoder.lift .cost (presentDecoder CostAbsent)
+
+
+year_ =
+    Decoder.lift .year (presentDecoder YearAbsent)
+
+
+month_ =
+    Decoder.lift .month (presentDecoder MonthAbsent)
+
+
+yearMonthDecoder =
+    Decoder.map2 YearMonth.fromMonthAndYear month_ year_
+
+
+presentDecoder : x -> Decoder.Decoder (Maybe a) x a
+presentDecoder errorIfAbsent =
+    Decoder.custom
+        (\maybeA ->
+            case maybeA of
+                Nothing ->
+                    Err [ errorIfAbsent ]
+
+                Just a ->
+                    Ok a
+        )
+
+
+type DecodeError
+    = DescriptionAbsent
+    | CostAbsent
+    | MonthAbsent
+    | YearAbsent
+
+
+decodeErrorToString decodeError =
+    case decodeError of
+        DescriptionAbsent ->
+            "description is missing"
+
+        CostAbsent ->
+            "cost is missing"
+
+        MonthAbsent ->
+            "month is missing"
+
+        YearAbsent ->
+            "year is missing"
 
 
 monthDropdownConfig =
