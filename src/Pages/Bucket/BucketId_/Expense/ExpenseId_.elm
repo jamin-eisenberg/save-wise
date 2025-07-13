@@ -38,6 +38,7 @@ type alias Model =
     , monthDropdownState : Dropdown.State Time.Month
     , saveState : SaveState
     , decodeErrors : List DecodeError
+    , new : Bool
     }
 
 
@@ -48,6 +49,7 @@ type Msg
     | EditYear (Maybe Int)
     | MonthDropdownMsg (Dropdown.Msg Time.Month)
     | EditMonth (Maybe Time.Month)
+    | Delete
     | Save
     | SaveResponded Time.Posix FormExpense
 
@@ -96,6 +98,7 @@ init expenseId e currentYearMonth =
             , monthDropdownState = Dropdown.init "month-dropdown"
             , saveState = NotStarted
             , decodeErrors = []
+            , new = True
             }
 
         Just expense ->
@@ -108,6 +111,7 @@ init expenseId e currentYearMonth =
             , monthDropdownState = Dropdown.init "month-dropdown"
             , saveState = NotStarted
             , decodeErrors = []
+            , new = False
             }
     , Effect.none
     )
@@ -156,6 +160,15 @@ update currentYear req msg model =
 
         EditYear newYear ->
             ( { model | year = newYear }, Effect.none )
+
+        Delete ->
+            ( { model | saveState = Saving }
+            , Effect.batch
+                [ Request.pushRoute (Gen.Route.Bucket__BucketId_ { bucketId = req.params.bucketId }) req
+                    |> Effect.fromCmd
+                , Effect.fromShared (Shared.DeleteExpense req.params.bucketId req.params.expenseId)
+                ]
+            )
 
         Save ->
             -- TODO actually save to DB
@@ -246,17 +259,34 @@ view currentYear bucketId model =
                     , Dropdown.view (yearDropdownConfig currentYear) model model.yearDropdownState
                     ]
                 ]
-            , Input.button
-                [ Element.width Element.fill
-                , Background.color (Shared.solidColorToColor X11.springGreen)
-                , Border.rounded 6
+            , Element.row [ Element.width Element.fill, Element.spacing 10 ]
+                [ Input.button
+                    [ Element.width Element.fill
+                    , Background.color (Shared.solidColorToColor X11.springGreen)
+                    , Border.rounded 6
+                    ]
+                    { onPress = Just Save
+                    , label =
+                        Element.paragraph
+                            [ Font.center, Element.padding 12 ]
+                            [ Element.text "Save" ]
+                    }
+                , if model.new then
+                    Element.none
+
+                  else
+                    Input.button
+                        [ Element.width Element.fill
+                        , Background.color (Shared.solidColorToColor X11.tomato)
+                        , Border.rounded 6
+                        ]
+                        { onPress = Just Delete
+                        , label =
+                            Element.paragraph
+                                [ Font.center, Element.padding 12 ]
+                                [ Element.text "Delete" ]
+                        }
                 ]
-                { onPress = Just Save
-                , label =
-                    Element.paragraph
-                        [ Font.center, Element.padding 12 ]
-                        [ Element.text "Save" ]
-                }
             ]
     }
 

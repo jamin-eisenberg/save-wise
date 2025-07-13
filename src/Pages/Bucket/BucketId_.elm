@@ -108,6 +108,10 @@ view bucket buckets transfers =
     }
 
 
+
+-- TODO fix updating the shared model
+
+
 viewSubtotals : String -> List Shared.Expense -> List Shared.Transfer -> Element.Element msg
 viewSubtotals bucketId transactions transfers =
     let

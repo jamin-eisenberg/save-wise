@@ -112,6 +112,7 @@ totalNetCents bucket transfers =
 
 type Msg
     = UpsertExpense String String Time.Posix { description : String, cost : Cents, yearMonth : Model.YearMonth.YearMonth }
+    | DeleteExpense String String
 
 
 init : Request -> Flags -> ( Model, Cmd Msg )
@@ -185,6 +186,7 @@ update _ msg model =
                     model.buckets
                         |> Dict.update bucketId
                             (\bucket ->
+                                -- TODO error on non-existent bucket/expense
                                 bucket
                                     |> Maybe.map
                                         (\existingBucket ->
@@ -212,6 +214,25 @@ update _ msg model =
                                                                             , timeCreated = oldExpense.timeCreated
                                                                             }
                                                             )
+                                            }
+                                        )
+                            )
+              }
+            , Cmd.none
+            )
+
+        DeleteExpense bucketId expenseId ->
+            ( { model
+                | buckets =
+                    model.buckets
+                        |> Dict.update bucketId
+                            (\bucket ->
+                                bucket
+                                    |> Maybe.map
+                                        (\existingBucket ->
+                                            { existingBucket
+                                                | expenses =
+                                                    Dict.remove expenseId existingBucket.expenses
                                             }
                                         )
                             )
