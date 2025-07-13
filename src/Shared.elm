@@ -5,6 +5,7 @@ module Shared exposing
     , Flags
     , Model
     , Msg(..)
+    , Tab(..)
     , Transfer
     , bucketTransfers
     , init
@@ -108,6 +109,11 @@ totalNetCents bucket transfers =
             |> List.map .cost
             |> List.sum
           )
+
+
+type Tab
+    = Buckets
+    | History
 
 
 type Msg

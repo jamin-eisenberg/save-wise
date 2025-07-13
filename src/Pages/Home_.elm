@@ -8,6 +8,7 @@ import Request exposing (Request)
 import Shared
 import View exposing (View)
 import Views.BucketBreakdown
+import Views.Tabs exposing (viewTabs)
 
 
 page : Shared.Model -> Request -> Page
@@ -22,8 +23,9 @@ view buckets transfers =
     { title = "Home"
     , element =
         Element.column
-            [ Font.size 80, Font.center, Element.centerX, Element.width Element.fill, Element.paddingXY 0 20 ]
-            [ Element.paragraph [] [ Element.text "$111,300" ]
+            [ Element.centerX, Element.width Element.fill, Element.paddingXY 0 20 ]
+            [ Element.paragraph [ Font.size 80, Font.center ] [ Element.text "$111,300" ]
             , Views.BucketBreakdown.view (Dict.values buckets) transfers Nothing
+            , viewTabs Shared.Buckets
             ]
     }
