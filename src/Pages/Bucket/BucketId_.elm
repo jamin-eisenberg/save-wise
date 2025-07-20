@@ -8,7 +8,6 @@ import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Bucket.BucketId_ exposing (Params)
 import Gen.Route as Route
-import Html.Attributes exposing (style)
 import Model.YearMonth
 import Page
 import Palette.X11 as X11

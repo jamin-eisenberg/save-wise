@@ -3,7 +3,6 @@ module Pages.Home_ exposing (page)
 import Dict exposing (Dict)
 import Element
 import Element.Font as Font
-import Html.Attributes exposing (style)
 import Page exposing (Page)
 import Request exposing (Request)
 import Shared

@@ -1,6 +1,5 @@
 module Pages.History exposing (page)
 
-import Browser.Dom exposing (Element)
 import Element
 import Gen.Params.History exposing (Params)
 import Page exposing (Page)
@@ -11,7 +10,7 @@ import Views.Tabs exposing (viewTabs)
 
 
 page : Shared.Model -> Request.With Params -> Page
-page shared req =
+page _ _ =
     Page.static
         { view = view
         }
