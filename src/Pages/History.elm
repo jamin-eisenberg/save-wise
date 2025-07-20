@@ -1,5 +1,7 @@
 module Pages.History exposing (page)
 
+import Browser.Dom exposing (Element)
+import Element
 import Gen.Params.History exposing (Params)
 import Page exposing (Page)
 import Request
@@ -15,8 +17,9 @@ page shared req =
         }
 
 
-view : View msg
+view : View Never
 view =
     { title = "History"
-    , element = viewTabs Shared.History
+    , floatingElements = [ viewTabs Shared.History ]
+    , element = Element.none
     }

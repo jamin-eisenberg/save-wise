@@ -8,7 +8,7 @@ import Palette.X11 as X11
 import Shared
 
 
-viewTabs : Shared.Tab -> Element.Element msg
+viewTabs : Shared.Tab -> Element.Element Never
 viewTabs tab =
     let
         viewTab route text highlightIf =
@@ -28,21 +28,14 @@ viewTabs tab =
                 ]
                 { url = Route.toHref route, label = Element.paragraph [ Element.centerX ] [ Element.text text ] }
     in
-    Element.html
-        (Element.layout
-            [ Element.inFront
-                (Element.row
-                    [ Element.alignBottom
-                    , Element.centerX
-                    , Element.width Element.fill
-                    , Element.height (Element.px 60)
-                    , Font.size 20
-                    , Font.center
-                    ]
-                    [ viewTab Route.Home_ "Buckets" Shared.Buckets
-                    , viewTab Route.History "History" Shared.History
-                    ]
-                )
-            ]
-            Element.none
-        )
+    Element.row
+        [ Element.alignBottom
+        , Element.centerX
+        , Element.width Element.fill
+        , Element.height (Element.px 60)
+        , Font.size 20
+        , Font.center
+        ]
+        [ viewTab Route.Home_ "Buckets" Shared.Buckets
+        , viewTab Route.History "History" Shared.History
+        ]

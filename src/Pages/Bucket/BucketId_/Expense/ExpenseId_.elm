@@ -200,6 +200,7 @@ update currentYear req msg model =
 view : Int -> String -> Model -> View Msg
 view currentYear bucketId model =
     { title = model.description
+    , floatingElements = []
     , element =
         Element.column
             [ Element.width Element.fill

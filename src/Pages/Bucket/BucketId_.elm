@@ -8,6 +8,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Gen.Params.Bucket.BucketId_ exposing (Params)
 import Gen.Route as Route
+import Html.Attributes exposing (style)
 import Model.YearMonth
 import Page
 import Palette.X11 as X11
@@ -71,40 +72,35 @@ update bucket req msg _ =
 view : Shared.Bucket -> Dict.Dict String Shared.Bucket -> List Shared.Transfer -> View Msg
 view bucket buckets transfers =
     { title = bucket.id
-    , element =
-        Element.html
-            (Element.layout
-                [ Element.inFront
-                    (Element.el
-                        [ Element.alignBottom
-                        , Element.alignRight
-                        , Element.width (Element.px 80)
-                        , Element.height (Element.px 80)
-                        ]
-                        (Input.button
-                            [ Element.alignTop
-                            , Element.alignLeft
-                            , Font.size 50
-                            , Font.center
-                            , Background.color (solidColorToColor X11.lightGreen)
-                            , Element.width (Element.px 70)
-                            , Element.height (Element.px 70)
-                            , Border.rounded 15
-                            ]
-                            { label = Element.text "$", onPress = Just StartCreateExpense }
-                        )
-                    )
+    , floatingElements =
+        [ Element.el
+            [ Element.alignBottom
+            , Element.alignRight
+            , Element.width (Element.px 80)
+            , Element.height (Element.px 80)
+            ]
+            (Input.button
+                [ Element.alignTop
+                , Element.alignLeft
+                , Font.size 50
+                , Font.center
+                , Background.color (solidColorToColor X11.lightGreen)
+                , Element.width (Element.px 70)
+                , Element.height (Element.px 70)
+                , Border.rounded 15
                 ]
-                (Element.column
-                    [ Font.size 80, Font.center, Element.centerX, Element.width Element.fill, Element.paddingXY 0 20 ]
-                    [ Element.paragraph [] [ Element.text (Views.Money.format { dollarSign = True, cents = False, alwaysSign = False } (Shared.totalNetCents bucket transfers)) ]
-                    , Views.BucketBreakdown.view (Dict.values buckets) transfers (Just bucket.id)
-                    , viewSubtotals bucket.id (Dict.values bucket.expenses) transfers
-                    , viewTransactions bucket transfers
-                    , Element.el [ Element.height (Element.px 80) ] Element.none
-                    ]
-                )
+                { label = Element.text "$", onPress = Just StartCreateExpense }
             )
+        ]
+    , element =
+        Element.column
+            [ Font.size 80, Font.center, Element.centerX, Element.width Element.fill, Element.paddingXY 0 20 ]
+            [ Element.paragraph [] [ Element.text (Views.Money.format { dollarSign = True, cents = False, alwaysSign = False } (Shared.totalNetCents bucket transfers)) ]
+            , Views.BucketBreakdown.view (Dict.values buckets) transfers (Just bucket.id)
+            , viewSubtotals bucket.id (Dict.values bucket.expenses) transfers
+            , viewTransactions bucket transfers
+            , Element.el [ Element.height (Element.px 80) ] Element.none
+            ]
     }
 
 
