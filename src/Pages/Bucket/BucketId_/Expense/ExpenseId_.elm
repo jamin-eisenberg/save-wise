@@ -29,7 +29,7 @@ type alias Year =
 
 
 type alias Model =
-    { id : String
+    { expenseId : String
     , description : String
     , cost : Maybe Int
     , year : Maybe Year
@@ -39,6 +39,8 @@ type alias Model =
     , saveState : SaveState
     , decodeErrors : List DecodeError
     , new : Bool
+    , bucket : Shared.Bucket
+    , currentYearMonth : YearMonth
     }
 
 
@@ -78,18 +80,18 @@ page shared req =
             Dict.get expenseId bucket.expenses
     in
     Page.advanced
-        { init = init expenseId expense shared.currentYearMonth
-        , update = update (getYear shared.currentYearMonth) req
-        , view = view (getYear shared.currentYearMonth) bucket.id
+        { init = init bucket expenseId expense shared.currentYearMonth
+        , update = update req
+        , view = view
         , subscriptions = \_ -> Sub.none
         }
 
 
-init : String -> Maybe Shared.Expense -> YearMonth -> ( Model, Effect.Effect Msg )
-init expenseId e currentYearMonth =
+init : Shared.Bucket -> String -> Maybe Shared.Expense -> YearMonth -> ( Model, Effect.Effect Msg )
+init bucket expenseId e currentYearMonth =
     ( case e of
         Nothing ->
-            { id = expenseId
+            { expenseId = expenseId
             , description = ""
             , cost = Nothing
             , year = Just (getYear currentYearMonth)
@@ -99,10 +101,12 @@ init expenseId e currentYearMonth =
             , saveState = NotStarted
             , decodeErrors = []
             , new = True
+            , currentYearMonth = currentYearMonth
+            , bucket = bucket
             }
 
         Just expense ->
-            { id = expense.id
+            { expenseId = expense.id
             , description = expense.description
             , cost = Just expense.cost
             , year = Just (YearMonth.getYear expense.yearMonth)
@@ -112,13 +116,15 @@ init expenseId e currentYearMonth =
             , saveState = NotStarted
             , decodeErrors = []
             , new = False
+            , currentYearMonth = currentYearMonth
+            , bucket = bucket
             }
     , Effect.none
     )
 
 
-update : Int -> Request.With Params -> Msg -> Model -> ( Model, Effect.Effect Msg )
-update currentYear req msg model =
+update : Request.With Params -> Msg -> Model -> ( Model, Effect.Effect Msg )
+update req msg model =
     case msg of
         EditDescription newDescription ->
             ( { model | description = newDescription }, Effect.none )
@@ -154,7 +160,7 @@ update currentYear req msg model =
         YearDropdownMsg subMsg ->
             let
                 ( state, cmd ) =
-                    Dropdown.update (yearDropdownConfig currentYear) subMsg model model.yearDropdownState
+                    Dropdown.update (yearDropdownConfig (getYear model.currentYearMonth)) subMsg model model.yearDropdownState
             in
             ( { model | yearDropdownState = state }, Effect.fromCmd cmd )
 
@@ -166,7 +172,7 @@ update currentYear req msg model =
             , Effect.batch
                 [ Request.pushRoute (Gen.Route.Bucket__BucketId_ { bucketId = req.params.bucketId }) req
                     |> Effect.fromCmd
-                , Effect.fromShared (Shared.DeleteExpense req.params.bucketId req.params.expenseId)
+                , Effect.fromShared (Shared.DeleteExpense model.bucket.id model.expenseId)
                 ]
             )
 
@@ -192,13 +198,13 @@ update currentYear req msg model =
             , Effect.batch
                 [ Request.pushRoute (Gen.Route.Bucket__BucketId_ { bucketId = req.params.bucketId }) req
                     |> Effect.fromCmd
-                , Effect.fromShared (Shared.UpsertExpense req.params.bucketId req.params.expenseId currentTime formExpense)
+                , Effect.fromShared (Shared.UpsertExpense model.bucket.id model.expenseId currentTime formExpense)
                 ]
             )
 
 
-view : Int -> String -> Model -> View Msg
-view currentYear bucketId model =
+view : Model -> View Msg
+view model =
     { title = model.description
     , floatingElements = []
     , element =
@@ -233,7 +239,7 @@ view currentYear bucketId model =
                     )
                     model.decodeErrors
                 )
-            , Element.text ("Bucket: " ++ bucketId)
+            , Element.text ("Bucket: " ++ model.bucket.id)
             , Input.text
                 []
                 { onChange = EditDescription
@@ -257,7 +263,7 @@ view currentYear bucketId model =
                     ]
                 , Element.column [ Element.width Element.fill, Element.spacing 8 ]
                     [ Element.text "Year"
-                    , Dropdown.view (yearDropdownConfig currentYear) model model.yearDropdownState
+                    , Dropdown.view (yearDropdownConfig (getYear model.currentYearMonth)) model model.yearDropdownState
                     ]
                 ]
             , Element.row [ Element.width Element.fill, Element.spacing 10 ]
@@ -316,7 +322,10 @@ description_ =
 
 
 cost_ =
-    Decoder.lift .cost (presentDecoder CostAbsent)
+    Decoder.lift .cost
+        (presentDecoder CostAbsent
+            |> Decoder.assert (Decoder.minBound CostNegative 1)
+        )
 
 
 year_ =
@@ -347,6 +356,7 @@ presentDecoder errorIfAbsent =
 type DecodeError
     = DescriptionAbsent
     | CostAbsent
+    | CostNegative
     | MonthAbsent
     | YearAbsent
 
@@ -354,16 +364,19 @@ type DecodeError
 decodeErrorToString decodeError =
     case decodeError of
         DescriptionAbsent ->
-            "description is missing"
+            "description must be present"
 
         CostAbsent ->
-            "cost is missing"
+            "cost must be present"
+
+        CostNegative ->
+            "cost must be positive"
 
         MonthAbsent ->
-            "month is missing"
+            "month must be present"
 
         YearAbsent ->
-            "year is missing"
+            "year must be present"
 
 
 monthDropdownConfig =
